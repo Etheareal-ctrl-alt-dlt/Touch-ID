@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Touch ID Setup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #f2f2f7;
+    --card-bg: #ffffff;
+    --text-primary: #1c1c1e;
+    --text-secondary: #636366;
+    --accent: #007aff;
+    --red: #ff3b30;
+    --success-green: #34c759;
+    --separator: rgba(0,0,0,0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --card-bg: #1c1c1e;
+      --text-primary: #ffffff;
+      --text-secondary: #8e8e93;
+      --separator: rgba(255,255,255,0.12);
+    }
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .screen {
+    width: 100%;
+    max-width: 390px;
+    height: 100%;
+    max-height: 844px;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Navigation Bar */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 60px 24px 8px;
+    flex-shrink: 0;
+  }
+
+  .nav-cancel {
+    font-size: 17px;
+    color: var(--accent);
+    font-weight: 400;
+    letter-spacing: -0.3px;
+    opacity: 1;
+    transition: opacity 0.15s;
+  }
+
+  /* Main Content */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 28px 32px 48px;
+    text-align: center;
+  }
+
+  .title {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.37px;
+    line-height: 1.15;
+    margin-bottom: 12px;
+    transition: opacity 0.3s;
+  }
+
+  .subtitle {
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    line-height: 1.47;
+    letter-spacing: -0.2px;
+    max-width: 280px;
+    margin-bottom: 52px;
+    min-height: 48px;
+    transition: opacity 0.3s, color 0.3s;
+  }
+
+  /* Fingerprint SVG Container */
+  .fingerprint-wrap {
+    position: relative;
+    width: 200px;
+    height: 240px;
+    margin-bottom: 48px;
+  }
+
+  .fp-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* Each ring path starts gray, transitions to red as scanned */
+  .fp-ring {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 0.4s ease, stroke-opacity 0.4s ease;
+  }
+
+  .fp-ring.unscanned {
+    stroke: var(--text-secondary);
+    stroke-opacity: 0.35;
+  }
+
+  .fp-ring.scanned {
+    stroke: var(--red);
+    stroke-opacity: 1;
+  }
+
+  /* Pulse ring on each press */
+  .pulse-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 2px solid var(--red);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .pulse-ring.animate {
+    animation: pulse-out 0.5s ease-out forwards;
+  }
+
+  @keyframes pulse-out {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.6; }
+    100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; }
+  }
+
+  /* Progress dots */
+  .progress-dots {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--separator);
+    border: 1.5px solid var(--text-secondary);
+    opacity: 0.4;
+    transition: background 0.3s, opacity 0.3s, transform 0.2s;
+  }
+
+  .dot.filled {
+    background: var(--red);
+    border-color: var(--red);
+    opacity: 1;
+  }
+
+  .dot.filled.just-filled {
+    animation: dot-pop 0.3s ease-out;
+  }
+
+  @keyframes dot-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.5); }
+    100% { transform: scale(1); }
+  }
+
+  /* Hint text at bottom */
+  .hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    letter-spacing: -0.1px;
+    opacity: 0.7;
+    margin-top: auto;
+  }
+
+  /* Success overlay */
+  .success-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1.05);
+    transition: opacity 0.5s cubic-bezier(0.2, 0.8, 0.3, 1), transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+
+  .success-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+    transform: scale(1);
+  }
+
+  .success-checkmark {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--success-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px;
+    animation: none;
+  }
+
+  .success-checkmark svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .success-title {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.37px;
+    margin-bottom: 12px;
+  }
+
+  .success-subtitle {
+    font-size: 17px;
+    color: var(--text-secondary);
+    line-height: 1.47;
+    letter-spacing: -0.2px;
+    max-width: 280px;
+    margin-bottom: 48px;
+  }
+
+  .continue-btn {
+    font-size: 17px;
+    color: var(--accent);
+    font-weight: 400;
+    letter-spacing: -0.3px;
+    padding: 14px 48px;
+    border: none;
+    background: none;
+    cursor: pointer;
+  }
+
+  /* Vibration flash */
+  .screen.vibrate {
+    animation: vibe 0.3s ease;
+  }
+
+  @keyframes vibe {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+
+  /* Camera control hint */
+  .cam-hint {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    white-space: nowrap;
+    letter-spacing: -0.1px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .cam-hint.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="screen" id="screen">
+
+  <!-- Setup UI -->
+  <div class="nav-bar">
+    <span class="nav-cancel">Cancel</span>
+  </div>
+
+  <div class="content">
+    <div class="title" id="title">Place Your Finger</div>
+    <div class="subtitle" id="subtitle">Lift and rest your finger on the Camera Control button repeatedly.</div>
+
+    <div class="fingerprint-wrap">
+      <svg class="fp-svg" viewBox="0 0 200 240" id="fpSvg">
+        <!-- 10 concentric fingerprint rings, outermost first (index 0 = outer) -->
+        <!-- Generated as elliptical arcs approximating a real fingerprint -->
+        <g id="rings"></g>
+      </svg>
+      <div class="pulse-ring" id="pulseRing"></div>
+    </div>
+
+    <div class="progress-dots" id="dots"></div>
+
+    <div class="hint" id="hint">Press Camera Control to scan</div>
+  </div>
+
+  <!-- Success UI -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-checkmark">
+      <svg viewBox="0 0 40 40" fill="none">
+        <path d="M8 20 L17 29 L32 13" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="success-title">Touch ID Ready</div>
+    <div class="success-subtitle">Your fingerprint can be used to unlock your device and make purchases.</div>
+    <button class="continue-btn" onclick="resetAll()">Done</button>
+  </div>
+</div>
+
+<div class="cam-hint" id="camHint">Use Camera Control button to scan</div>
+
+<script>
+  const TOTAL_PRESSES = 10;
+  let pressCount = 0;
+  let isComplete = false;
+  let lastPressTime = 0;
+
+  // Build fingerprint rings as SVG paths
+  // We'll draw 10 nested loop-shaped paths that look like a fingerprint whorl
+  const ringsContainer = document.getElementById('rings');
+  const ringElements = [];
+
+  function buildFingerprint() {
+    // Generate concentric oval paths that simulate fingerprint ridges
+    // Each ring: a closed ellipse-ish path with slight organic distortion
+    const cx = 100, cy = 118;
+    
+    for (let i = 0; i < 10; i++) {
+      const t = i / 9; // 0 = innermost, 1 = outermost
+      const rx = 14 + t * 62;   // x radius grows outward
+      const ry = 18 + t * 78;   // y radius grows outward
+      const sw = 2.2 - t * 0.6; // stroke width slightly thicker inner
+      
+      // Create a "fingerprint loop" shape using a path
+      // We'll make it an elongated teardrop shape at the top
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      
+      // Build an ellipse-like path with a slight notch at top to simulate loop pattern
+      const d = makeRingPath(cx, cy, rx, ry, i);
+      path.setAttribute('d', d);
+      path.setAttribute('stroke-width', sw);
+      path.setAttribute('class', 'fp-ring unscanned');
+      path.style.strokeDasharray = getPathLength(rx, ry);
+      path.style.strokeDashoffset = '0';
+      
+      ringsContainer.appendChild(path);
+      ringElements.push(path);
+    }
+  }
+
+  function makeRingPath(cx, cy, rx, ry, idx) {
+    // Create a fingerprint-like loop shape
+    // Use bezier curves to make organic ellipse with top loop
+    const topY = cy - ry;
+    const botY = cy + ry;
+    const leftX = cx - rx;
+    const rightX = cx + rx;
+    
+    // Control point offsets for bezier - gives organic feel
+    const cpx = rx * 0.55;
+    const cpy = ry * 0.55;
+    
+    // Slight asymmetry per ring
+    const skew = (idx % 3 - 1) * 2;
+    
+    return `M ${cx + skew} ${topY}
+      C ${rightX + skew} ${topY} ${rightX} ${cy - cpy} ${rightX} ${cy}
+      C ${rightX} ${cy + cpy} ${cx + rx * 0.7} ${botY} ${cx} ${botY}
+      C ${cx - rx * 0.7} ${botY} ${leftX} ${cy + cpy} ${leftX} ${cy}
+      C ${leftX} ${cy - cpy} ${cx - rx * 0.4 + skew} ${topY} ${cx + skew} ${topY}
+      Z`;
+  }
+
+  function getPathLength(rx, ry) {
+    // Approximate ellipse circumference (Ramanujan)
+    const a = rx, b = ry;
+    const h = Math.pow((a - b) / (a + b), 2);
+    return Math.PI * (a + b) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h)));
+  }
+
+  // Build progress dots
+  function buildDots() {
+    const dotsEl = document.getElementById('dots');
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < TOTAL_PRESSES; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      dot.id = `dot-${i}`;
+      dotsEl.appendChild(dot);
+    }
+  }
+
+  // Called on each Camera Control press
+  function handlePress() {
+    if (isComplete) return;
+    
+    const now = Date.now();
+    if (now - lastPressTime < 300) return; // debounce
+    lastPressTime = now;
+
+    pressCount++;
+    
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    // Pulse animation
+    const pulse = document.getElementById('pulseRing');
+    pulse.classList.remove('animate');
+    void pulse.offsetWidth;
+    pulse.classList.add('animate');
+
+    // Determine which rings to illuminate
+    // Fill from outside-in as user scans (like real Touch ID)
+    // Press 1 fills outermost rings, press 10 fills innermost
+    const ringsPerPress = 1;
+    // Map press count to ring index (outer = index 9, inner = index 0)
+    // Actually let's reveal outer edge first progressing inward
+    const ringIdx = TOTAL_PRESSES - pressCount; // 9 down to 0
+    
+    if (ringElements[ringIdx]) {
+      ringElements[ringIdx].classList.remove('unscanned');
+      ringElements[ringIdx].classList.add('scanned');
+    }
+
+    // Also partially illuminate neighbor for richness
+    if (pressCount <= 5 && ringElements[ringIdx + 1]) {
+      ringElements[ringIdx + 1].classList.remove('unscanned');
+      ringElements[ringIdx + 1].classList.add('scanned');
+    }
+
+    // Update dot
+    const dot = document.getElementById(`dot-${pressCount - 1}`);
+    if (dot) {
+      dot.classList.add('filled', 'just-filled');
+      setTimeout(() => dot.classList.remove('just-filled'), 400);
+    }
+
+    // Update subtitle based on progress
+    updateHintText(pressCount);
+
+    if (pressCount >= TOTAL_PRESSES) {
+      completeSetup();
+    }
+  }
+
+  function updateHintText(count) {
+    const subtitle = document.getElementById('subtitle');
+    const hints = [
+      'Keep going...', 'Keep going...', 'Good, keep lifting and resting.',
+      'Halfway there...', 'Halfway there...', 'Almost done...',
+      'Almost done...', 'Just a few more...', 'One more time...', 'One more...'
+    ];
+    if (count > 0 && count < TOTAL_PRESSES) {
+      subtitle.textContent = hints[count - 1] || 'Keep going...';
+    }
+  }
+
+  function completeSetup() {
+    isComplete = true;
+    // Light up all remaining rings
+    ringElements.forEach(r => {
+      r.classList.remove('unscanned');
+      r.classList.add('scanned');
+    });
+    
+    if (navigator.vibrate) navigator.vibrate([50, 30, 80]);
+
+    setTimeout(() => {
+      document.getElementById('successOverlay').classList.add('visible');
+    }, 600);
+  }
+
+  function resetAll() {
+    pressCount = 0;
+    isComplete = false;
+    lastPressTime = 0;
+
+    document.getElementById('successOverlay').classList.remove('visible');
+    document.getElementById('title').textContent = 'Place Your Finger';
+    document.getElementById('subtitle').textContent = 'Lift and rest your finger on the Camera Control button repeatedly.';
+
+    ringElements.forEach(r => {
+      r.classList.remove('scanned');
+      r.classList.add('unscanned');
+    });
+
+    buildDots();
+  }
+
+  // ─── Camera Control Detection ───────────────────────────────────────────────
+  // On iPhone 16, Camera Control fires a pointerdown with pointerType "indirect"
+  // It also fires as a keyboard event with code "CameraButton" in some iOS versions
+  // We listen for both patterns
+
+  window.addEventListener('pointerdown', (e) => {
+    // Camera Control sends pointerType "indirect" or specific pointerId patterns
+    // It also sends events with isPrimary false on some devices
+    if (e.pointerType === 'indirect' || 
+        (e.pointerType === '' && !e.isPrimary) ||
+        e.pointerType === 'camera') {
+      e.preventDefault();
+      handlePress();
+    }
+  }, { passive: false });
+
+  // Some iOS versions fire keyboard events for Camera Control
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'CameraButton' || e.code === 'Camera' || e.key === 'Camera') {
+      e.preventDefault();
+      handlePress();
+    }
+  });
+
+  // Also listen for the specific Apple Camera Control event
+  window.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'indirect') {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // Show hint tooltip briefly on load
+  const camHint = document.getElementById('camHint');
+  setTimeout(() => camHint.classList.add('show'), 800);
+  setTimeout(() => camHint.classList.remove('show'), 4000);
+
+  // Init
+  buildFingerprint();
+  buildDots();
+</script>
+</body>
+</html>
